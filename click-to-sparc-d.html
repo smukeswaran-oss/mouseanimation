@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruby Diamond Burst</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #1a0d10 0%, #0c0608 60%, #000000 100%);
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+  }
+
+  #stage {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+  }
+
+  .hint {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 180, 190, 0.3);
+    letter-spacing: 3px;
+    font-size: 13px;
+    text-transform: uppercase;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="hint">Click anywhere</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---------- Ruby palette ----------
+  // Deep, varied ruby-red tones so diamonds don't look flat/uniform
+  const RUBY_COLORS = [
+    { r: 200, g: 10,  b: 30  }, // deep ruby
+    { r: 235, g: 25,  b: 45  }, // classic ruby red
+    { r: 255, g: 70,  b: 80  }, // bright rose ruby
+    { r: 150, g: 5,   b: 20  }, // dark garnet
+    { r: 255, g: 110, b: 110 } // light ruby highlight tone
+  ];
+
+  const GLITTER_COLORS = [
+    'rgba(255,90,100,',
+    'rgba(255,180,180,',
+    'rgba(220,20,40,',
+    'rgba(255,255,255,' // occasional bright white glint for realism
+  ];
+
+  let diamonds = [];
+  let glitters = [];
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  // ---------- Ruby diamond particle ----------
+  function createDiamond(x, y) {
+    const angle = rand(0, Math.PI * 2);
+    const speed = rand(2.5, 9.5);
+    return {
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: rand(6, 17),
+      rotation: rand(0, Math.PI * 2),
+      rotSpeed: rand(-0.25, 0.25),
+      life: 0,
+      maxLife: rand(900, 1600),
+      color: pick(RUBY_COLORS),
+      gravity: rand(0.05, 0.12),
+      drag: rand(0.965, 0.985),
+      sparklePhase: rand(0, Math.PI * 2),
+      sparkleSpeed: rand(0.15, 0.35),
+      scalePunch: rand(1.1, 1.4)
+    };
+  }
+
+  // ---------- Glitter dust particle ----------
+  function createGlitter(x, y) {
+    const angle = rand(0, Math.PI * 2);
+    const speed = rand(1, 5.5);
+    return {
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: rand(0.8, 2.6),
+      life: 0,
+      maxLife: rand(600, 1200),
+      color: pick(GLITTER_COLORS),
+      drag: rand(0.94, 0.97),
+      gravity: rand(0.02, 0.06),
+      twinklePhase: rand(0, Math.PI * 2),
+      twinkleSpeed: rand(0.2, 0.5)
+    };
+  }
+
+  function burst(x, y) {
+    const diamondCount = 16 + Math.floor(Math.random() * 8); // 16-23
+    const glitterCount = 24 + Math.floor(Math.random() * 16); // 24-39
+
+    for (let i = 0; i < diamondCount; i++) diamonds.push(createDiamond(x, y));
+    for (let i = 0; i < glitterCount; i++) glitters.push(createGlitter(x, y));
+
+    const MAX_D = 260;
+    const MAX_G = 420;
+    if (diamonds.length > MAX_D) diamonds.splice(0, diamonds.length - MAX_D);
+    if (glitters.length > MAX_G) glitters.splice(0, glitters.length - MAX_G);
+  }
+
+  // ---------- Manual glow (avoids shadowBlur color-shift bugs) ----------
+  function drawGlow(x, y, radius, r, g, b, alpha) {
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.55 * alpha})`);
+    glow.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.22 * alpha})`);
+    glow.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ---------- Draw ruby diamond ----------
+  function drawDiamond(d, t) {
+    const lifeRatio = d.life / d.maxLife;
+    if (lifeRatio >= 1) return;
+
+    let scale;
+    if (lifeRatio < 0.12) {
+      scale = (lifeRatio / 0.12) * d.scalePunch;
+    } else if (lifeRatio > 0.7) {
+      scale = d.scalePunch * (1 - (lifeRatio - 0.7) / 0.3);
+    } else {
+      scale = d.scalePunch;
+    }
+    scale = Math.max(scale, 0.001);
+
+    const alpha = lifeRatio > 0.65 ? Math.max(0, 1 - (lifeRatio - 0.65) / 0.35) : 1;
+    const s = d.size * scale;
+    const c = d.color;
+    const sparkle = 0.55 + 0.45 * Math.sin(d.sparklePhase + t * d.sparkleSpeed * 0.01);
+
+    // Manual glow behind the gem (soft red halo)
+    drawGlow(d.x, d.y, s * 2.4 + sparkle * 6, c.r, c.g, c.b, alpha);
+
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.rotate(d.rotation);
+
+    const w = s * 0.62;
+    const hTop = s * 0.42;
+    const hBot = s;
+
+    // Deep ruby body gradient: bright glossy top-left highlight,
+    // rich red midtone, near-black garnet shadow at base
+    const grad = ctx.createLinearGradient(-w, -hTop - s * 0.15, w, hBot);
+    grad.addColorStop(0, `rgba(255, 235, 235, ${0.95 * alpha})`);         // glossy highlight
+    grad.addColorStop(0.28, `rgba(${Math.min(255, c.r + 40)}, ${Math.min(255, c.g + 20)}, ${Math.min(255, c.b + 20)}, ${0.92 * alpha})`);
+    grad.addColorStop(0.55, `rgba(${c.r}, ${c.g}, ${c.b}, ${0.9 * alpha})`);
+    grad.addColorStop(0.8, `rgba(${Math.max(0, c.r - 90)}, ${Math.max(0, c.g - 5)}, ${Math.max(0, c.b - 5)}, ${0.85 * alpha})`);
+    grad.addColorStop(1, `rgba(${Math.max(0, c.r - 130)}, 0, 5, ${0.6 * alpha})`); // dark garnet base
+
+    ctx.beginPath();
+    ctx.moveTo(0, -hTop - s * 0.15); // top point
+    ctx.lineTo(w, -hTop * 0.15);     // right upper facet
+    ctx.lineTo(0, hBot);             // bottom point
+    ctx.lineTo(-w, -hTop * 0.15);    // left upper facet
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Facet division lines (gives cut-gem structure)
+    ctx.strokeStyle = `rgba(120, 0, 15, ${0.5 * alpha})`;
+    ctx.lineWidth = Math.max(0.4, s * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(0, -hTop - s * 0.15);
+    ctx.lineTo(0, hBot);
+    ctx.moveTo(-w, -hTop * 0.15);
+    ctx.lineTo(w, -hTop * 0.15);
+    ctx.stroke();
+
+    // Glossy highlight streak (upper-left facet catching light)
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.55, -hTop * 0.4);
+    ctx.lineTo(-w * 0.1, -hTop - s * 0.05);
+    ctx.lineTo(-w * 0.25, -hTop * 0.1);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.55 * alpha * sparkle})`;
+    ctx.fill();
+
+    // Bright sparkle flare crossing the gem
+    if (sparkle > 0.78) {
+      const flareAlpha = (sparkle - 0.78) / 0.22 * alpha;
+      const flareLen = s * 0.95;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${flareAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-flareLen, 0);
+      ctx.lineTo(flareLen, 0);
+      ctx.moveTo(0, -flareLen);
+      ctx.lineTo(0, flareLen);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 255, 255, ${flareAlpha})`;
+      ctx.arc(0, 0, s * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawGlitter(g, t) {
+    const lifeRatio = g.life / g.maxLife;
+    if (lifeRatio >= 1) return;
+
+    const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(g.twinklePhase + t * g.twinkleSpeed * 0.01));
+    const alpha = (1 - lifeRatio) * twinkle;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.fillStyle = g.color + alpha.toFixed(3) + ')';
+    ctx.arc(g.x, g.y, g.size * (0.6 + 0.4 * twinkle), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function updateDiamond(d, dt) {
+    d.life += dt;
+    d.vy += d.gravity;
+    d.vx *= d.drag;
+    d.vy *= d.drag;
+    d.x += d.vx;
+    d.y += d.vy;
+    d.rotation += d.rotSpeed;
+  }
+
+  function updateGlitter(g, dt) {
+    g.life += dt;
+    g.vy += g.gravity;
+    g.vx *= g.drag;
+    g.vy *= g.drag;
+    g.x += g.vx;
+    g.y += g.vy;
+  }
+
+  let lastTime = performance.now();
+
+  function loop(now) {
+    const dt = Math.min(now - lastTime, 32);
+    lastTime = now;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = glitters.length - 1; i >= 0; i--) {
+      const g = glitters[i];
+      updateGlitter(g, dt);
+      if (g.life >= g.maxLife) { glitters.splice(i, 1); continue; }
+      drawGlitter(g, now);
+    }
+
+    for (let i = diamonds.length - 1; i >= 0; i--) {
+      const d = diamonds[i];
+      updateDiamond(d, dt);
+      if (d.life >= d.maxLife) { diamonds.splice(i, 1); continue; }
+      drawDiamond(d, now);
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function handlePointer(x, y) { burst(x, y); }
+
+  window.addEventListener('pointerdown', (e) => handlePointer(e.clientX, e.clientY));
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches.length) handlePointer(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Diamond Field</title>
+<style>
+  :root{
+    --bg:#0d0507;
+    --accent:#E0115F;
+    --accent2:#5A0A20;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    cursor:none;
+    font-family:'Courier New', monospace;
+  }
+  .label{
+    position:fixed;
+    top:24px;
+    left:24px;
+    color:#4a4d5a;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    z-index:5;
+  }
+  .controls{
+    position:fixed;
+    bottom:24px;
+    left:24px;
+    color:#8a8d9a;
+    font-size:12px;
+    letter-spacing:1px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    z-index:5;
+  }
+  .controls input{
+    width:120px;
+    accent-color:var(--accent);
+  }
+  #field{
+    position:fixed;
+    inset:0;
+  }
+  .diamond{
+    position:absolute;
+    top:0;
+    left:0;
+    pointer-events:none;
+    transform:translate(-50%,-50%) rotate(45deg);
+    background:#3a0c17;
+    border:1px solid #7a1f36;
+  }
+  .cursor-dot{
+    position:fixed;
+    top:0;
+    left:0;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#fff;
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    z-index:10;
+  }
+</style>
+</head>
+<body>
+  <div class="label">ruby field — move your mouse</div>
+  <div class="controls">
+    <span>spacing = <span id="sval">60</span>px</span>
+    <input type="range" id="srange" min="30" max="120" value="60">
+  </div>
+
+  <div id="field"></div>
+  <div class="cursor-dot" id="cursorDot"></div>
+
+  <script>
+    const field = document.getElementById('field');
+    const srange = document.getElementById('srange');
+    const sval = document.getElementById('sval');
+    const cursorDot = document.getElementById('cursorDot');
+
+    let mouseX = window.innerWidth/2, mouseY = window.innerHeight/2;
+    let particles = []; // {el, homeX, homeY, x, y, size}
+    let spacing = parseInt(srange.value, 10);
+    const RADIUS = 220;      // influence radius around cursor
+    const MAX_PUSH = 34;     // how far a diamond can be displaced
+
+    function colorFor(t){
+      // ruby glow: deep crimson toward a bright rose-gold highlight
+      const c1 = [224, 17, 95];   // ruby
+      const c2 = [255, 176, 112]; // warm gold glint
+      const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+      const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+      const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function buildField(){
+      field.innerHTML = '';
+      particles = [];
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const minDist = spacing * 0.65; // keeps scatter neat, avoids overlap/clumping
+      const targetCount = Math.round((W * H) / (spacing * spacing));
+      const positions = [];
+      let attempts = 0;
+      const maxAttempts = targetCount * 40;
+
+      while(positions.length < targetCount && attempts < maxAttempts){
+        attempts++;
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        let ok = true;
+        for(const p of positions){
+          const dx = p[0]-x, dy = p[1]-y;
+          if(dx*dx + dy*dy < minDist*minDist){ ok = false; break; }
+        }
+        if(ok) positions.push([x,y]);
+      }
+
+      positions.forEach(([homeX, homeY])=>{
+        const size = Math.max(spacing * (0.2 + Math.random()*0.18), 5);
+        const el = document.createElement('div');
+        el.className = 'diamond';
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        field.appendChild(el);
+        particles.push({ el, homeX, homeY, x: homeX, y: homeY, size });
+      });
+    }
+
+    srange.addEventListener('input', ()=>{
+      spacing = parseInt(srange.value, 10);
+      sval.textContent = spacing;
+      buildField();
+    });
+
+    window.addEventListener('mousemove', (e)=>{
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursorDot.style.left = mouseX + 'px';
+      cursorDot.style.top = mouseY + 'px';
+    });
+
+    window.addEventListener('resize', buildField);
+
+    function animate(){
+      particles.forEach(p=>{
+        const dx = p.homeX - mouseX;
+        const dy = p.homeY - mouseY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        let targetX = p.homeX;
+        let targetY = p.homeY;
+
+        if(dist < RADIUS){
+          const force = (1 - dist / RADIUS);
+          const angle = Math.atan2(dy, dx);
+          const push = force * MAX_PUSH;
+          targetX = p.homeX + Math.cos(angle) * push;
+          targetY = p.homeY + Math.sin(angle) * push;
+
+          const t = 1 - dist / RADIUS;
+          p.el.style.background = colorFor(t);
+          p.el.style.boxShadow = `0 0 ${8*t}px ${colorFor(t)}`;
+          p.el.style.borderColor = 'transparent';
+          const scale = 1 + force * 1.2;
+          p.el.style.transform = `translate(-50%,-50%) rotate(45deg) scale(${scale})`;
+        } else {
+          p.el.style.background = '#3a0c17';
+          p.el.style.boxShadow = 'none';
+          p.el.style.borderColor = '#7a1f36';
+          p.el.style.transform = 'translate(-50%,-50%) rotate(45deg) scale(1)';
+        }
+
+        p.x += (targetX - p.x) * 0.15;
+        p.y += (targetY - p.y) * 0.15;
+
+        p.el.style.left = p.x + 'px';
+        p.el.style.top = p.y + 'px';
+      });
+      requestAnimationFrame(animate);
+    }
+
+    buildField();
+    animate();
+  </script>
+</body>
+</html>

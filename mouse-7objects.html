@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smoke Effect — Mouse Reactive</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    height:100%;
+    width:100%;
+    background:#04050a;
+    overflow:hidden;
+    cursor:none;
+  }
+  canvas{
+    position:fixed;
+    inset:0;
+    display:block;
+  }
+  .label{
+    position:fixed;
+    top:24px;
+    left:24px;
+    color:rgba(255,255,255,0.45);
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    font-family:'Courier New', monospace;
+    z-index:5;
+  }
+  .cursor-dot{
+    position:fixed;
+    top:0;
+    left:0;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#fff;
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    z-index:10;
+    box-shadow:0 0 12px 3px rgba(255,255,255,0.6);
+  }
+</style>
+</head>
+<body>
+  <div class="label">move your mouse — the smoke follows</div>
+  <canvas id="c"></canvas>
+  <div class="cursor-dot" id="cursorDot"></div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const cursorDot = document.getElementById('cursorDot');
+
+    let W, H;
+    function resize(){
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // palette pulled from the reference art: teal, violet, magenta, warm gold core
+    const PALETTE = [
+      { r: 40,  g: 220, b: 200 },  // teal
+      { r: 120, g: 90,  b: 230 },  // violet
+      { r: 230, g: 50,  b: 170 },  // magenta
+      { r: 255, g: 180, b: 110 }   // warm gold
+    ];
+
+    let mouseX = W/2, mouseY = H/2;
+    let smoothX = mouseX, smoothY = mouseY;
+
+    window.addEventListener('mousemove', (e)=>{
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursorDot.style.left = mouseX + 'px';
+      cursorDot.style.top = mouseY + 'px';
+    });
+
+    // strands: each is a ribbon of points that trails and curls around the cursor
+    const STRAND_COUNT = 7;
+    const POINTS_PER_STRAND = 40;
+    let strands = [];
+
+    function initStrands(){
+      strands = [];
+      for(let s=0; s<STRAND_COUNT; s++){
+        const pts = [];
+        for(let i=0; i<POINTS_PER_STRAND; i++){
+          pts.push({ x: W/2, y: H/2 });
+        }
+        strands.push({
+          pts,
+          angleOffset: (Math.PI * 2 / STRAND_COUNT) * s,
+          speed: 0.6 + Math.random()*0.6,
+          radius: 60 + Math.random()*160,
+          color: PALETTE[s % PALETTE.length],
+          noiseSeed: Math.random()*1000,
+          widthBase: 10 + Math.random()*18
+        });
+      }
+    }
+    initStrands();
+
+    let t = 0;
+
+    function draw(){
+      t += 0.012;
+
+      // fade previous frame for trailing smoke look
+      ctx.fillStyle = 'rgba(4,5,10,0.12)';
+      ctx.fillRect(0,0,W,H);
+
+      smoothX += (mouseX - smoothX) * 0.05;
+      smoothY += (mouseY - smoothY) * 0.05;
+
+      ctx.globalCompositeOperation = 'lighter';
+
+      strands.forEach((strand)=>{
+        // head of the strand orbits/curls near the cursor
+        const angle = t * strand.speed + strand.angleOffset + Math.sin(t*0.5 + strand.noiseSeed)*0.8;
+        const wobble = Math.sin(t*1.3 + strand.noiseSeed) * 40;
+        const headX = smoothX + Math.cos(angle) * (strand.radius + wobble);
+        const headY = smoothY + Math.sin(angle) * (strand.radius + wobble) * 0.7;
+
+        strand.pts.unshift({ x: headX, y: headY });
+        strand.pts.pop();
+
+        // draw ribbon
+        for(let i=0; i<strand.pts.length-1; i++){
+          const p0 = strand.pts[i];
+          const p1 = strand.pts[i+1];
+          const life = 1 - i/strand.pts.length;
+          const w = strand.widthBase * life;
+          const alpha = 0.25 * life;
+
+          ctx.strokeStyle = `rgba(${strand.color.r},${strand.color.g},${strand.color.b},${alpha})`;
+          ctx.lineWidth = w;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
+        }
+      });
+
+      // warm core glow near the cursor, echoing the photo's bright center
+      const grad = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, 90);
+      grad.addColorStop(0, 'rgba(255,200,140,0.35)');
+      grad.addColorStop(1, 'rgba(255,200,140,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(smoothX, smoothY, 90, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Image Move Effect</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    height:100%;
+    width:100%;
+    background:#000;
+    overflow:hidden;
+    cursor:none;
+  }
+  .bg{
+    position:fixed;
+    top:-8%;
+    left:-8%;
+    width:116%;
+    height:116%;
+    background-image:url('smoke-bg.jpg');
+    background-size:cover;
+    background-position:center;
+    transform:translate(0px,0px) scale(1);
+    will-change:transform;
+  }
+  .label{
+    position:fixed;
+    top:24px;
+    left:24px;
+    color:rgba(255,255,255,0.55);
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    font-family:'Courier New', monospace;
+    z-index:5;
+  }
+  .cursor-dot{
+    position:fixed;
+    top:0;
+    left:0;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#fff;
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    z-index:10;
+    box-shadow:0 0 10px 2px rgba(255,255,255,0.6);
+  }
+</style>
+</head>
+<body>
+  <div class="label">move your mouse — the image shifts with you</div>
+  <div class="bg" id="bg"></div>
+  <div class="cursor-dot" id="cursorDot"></div>
+
+  <script>
+    const bg = document.getElementById('bg');
+    const cursorDot = document.getElementById('cursorDot');
+
+    let targetX = 0, targetY = 0;
+    let curX = 0, curY = 0;
+
+    window.addEventListener('mousemove', (e) => {
+      cursorDot.style.left = e.clientX + 'px';
+      cursorDot.style.top = e.clientY + 'px';
+
+      targetX = (e.clientX / window.innerWidth) * 2 - 1;
+      targetY = (e.clientY / window.innerHeight) * 2 - 1;
+    });
+
+    function animate() {
+      curX += (targetX - curX) * 0.05;
+      curY += (targetY - curY) * 0.05;
+
+      const shiftX = curX * -60;
+      const shiftY = curY * -60;
+      const scale = 1.08 + Math.abs(curX * curY) * 0.05;
+
+      bg.style.transform = `translate(${shiftX}px, ${shiftY}px) scale(${scale})`;
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Diamond Trail</title>
+<style>
+  :root{
+    --bg:#0b0c10;
+    --grid:#161821;
+    --accent:#7CFFCB;
+    --accent2:#6C8CFF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    cursor:none;
+    font-family:'Courier New', monospace;
+  }
+  .grid{
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:40px 40px;
+  }
+  .label{
+    position:fixed;
+    top:24px;
+    left:24px;
+    color:#4a4d5a;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+  .controls{
+    position:fixed;
+    bottom:24px;
+    left:24px;
+    color:#8a8d9a;
+    font-size:12px;
+    letter-spacing:1px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .controls input{
+    width:120px;
+    accent-color:var(--accent);
+  }
+  .diamond{
+    position:fixed;
+    top:0;
+    left:0;
+    pointer-events:none;
+    transform:translate(-50%,-50%) rotate(45deg);
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="label">move your mouse — diamonds trail behind</div>
+  <div class="controls">
+    <span>n = <span id="nval">12</span></span>
+    <input type="range" id="nrange" min="2" max="60" value="12">
+  </div>
+
+  <div id="trail"></div>
+
+  <script>
+    const trailContainer = document.getElementById('trail');
+    const nrange = document.getElementById('nrange');
+    const nval = document.getElementById('nval');
+
+    let mouseX = window.innerWidth/2, mouseY = window.innerHeight/2;
+    let diamonds = [];   // {el, x, y}
+    let n = parseInt(nrange.value, 10);
+
+    function colorFor(i, total){
+      // gradient sweep from accent to accent2 across the trail
+      const t = i / Math.max(total - 1, 1);
+      const c1 = [124, 255, 203]; // accent
+      const c2 = [108, 140, 255]; // accent2
+      const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+      const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+      const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function buildDiamonds(count){
+      trailContainer.innerHTML = '';
+      diamonds = [];
+      for(let i=0;i<count;i++){
+        const el = document.createElement('div');
+        el.className = 'diamond';
+        // size shrinks slightly toward the tail
+        const size = Math.max(20 - i*(14/count), 6);
+        const color = colorFor(i, count);
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.background = color;
+        el.style.boxShadow = `0 0 ${size}px ${color}`;
+        el.style.opacity = 1 - (i/count)*0.75;
+        trailContainer.appendChild(el);
+        diamonds.push({ el, x: mouseX, y: mouseY });
+      }
+    }
+
+    nrange.addEventListener('input', ()=>{
+      n = parseInt(nrange.value, 10);
+      nval.textContent = n;
+      buildDiamonds(n);
+    });
+
+    window.addEventListener('mousemove', (e)=>{
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function animate(){
+      let targetX = mouseX;
+      let targetY = mouseY;
+      diamonds.forEach((d, i)=>{
+        // each diamond eases toward the one ahead of it, creating a chained trail
+        d.x += (targetX - d.x) * 0.3;
+        d.y += (targetY - d.y) * 0.3;
+        d.el.style.left = d.x + 'px';
+        d.el.style.top = d.y + 'px';
+        targetX = d.x;
+        targetY = d.y;
+      });
+      requestAnimationFrame(animate);
+    }
+
+    buildDiamonds(n);
+    animate();
+  </script>
+</body>
+</html>

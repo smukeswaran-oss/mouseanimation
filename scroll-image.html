@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinematic Hero Slider</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0c;
+    --ink:#f2f0ea;
+    --ink-dim:#c9c6bd;
+    --accent:#d4af37; /* muted cinematic gold */
+    --accent-dim:#8a7526;
+    --duration:1s;
+    --autoplay-interval:3s;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  html,body{
+    height:100%;
+    background:var(--bg);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+  }
+
+  /* ============ SLIDER SHELL ============ */
+  .hero-slider{
+    position:relative;
+    width:100%;
+    height:100svh;
+    min-height:480px;
+    overflow:hidden;
+    background:#000;
+    isolation:isolate;
+  }
+
+  .slider-track{
+    display:flex;
+    height:100%;
+    width:100%;
+    will-change:transform;
+    transform:translate3d(-100%,0,0);
+  }
+  .slider-track.animate{
+    transition:transform var(--duration) cubic-bezier(.65,0,.35,1);
+  }
+
+  .slide{
+    position:relative;
+    flex:0 0 100%;
+    height:100%;
+    overflow:hidden;
+    background:#000;
+  }
+
+  .slide img{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    object-position:center;
+    transform:scale(1.06);
+    transition:transform .6s ease-out;
+    will-change:transform;
+    backface-visibility:hidden;
+  }
+
+  /* Ken Burns: only the currently active real slide breathes */
+  .slide.kenburns img{
+    animation:kenburns 7s ease-in-out infinite alternate;
+  }
+  @keyframes kenburns{
+    0%{ transform:scale(1.04) translate3d(0,0,0); }
+    100%{ transform:scale(1.14) translate3d(-1%,-1%,0); }
+  }
+
+  /* gradient overlay for legibility, cinematic vignette */
+  .slide::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,.45) 32%, rgba(0,0,0,.05) 58%, rgba(0,0,0,.35) 100%),
+      linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.35) 32%, rgba(0,0,0,0) 60%);
+    z-index:2;
+    pointer-events:none;
+  }
+  .slide::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    box-shadow:inset 0 0 160px rgba(0,0,0,.65);
+    z-index:2;
+    pointer-events:none;
+  }
+
+  /* ============ SLIDE CONTENT ============ */
+  .slide-content{
+    position:absolute;
+    z-index:3;
+    left:6%;
+    bottom:14%;
+    max-width:640px;
+    color:var(--ink);
+    opacity:0;
+    transform:translateY(24px);
+    transition:opacity .7s ease .15s, transform .7s ease .15s;
+  }
+  .slide.active .slide-content{
+    opacity:1;
+    transform:translateY(0);
+  }
+
+  .eyebrow{
+    display:inline-block;
+    font-size:.72rem;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:14px;
+    padding-bottom:4px;
+    border-bottom:1px solid rgba(212,175,55,.4);
+  }
+
+  .slide-title{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(2.4rem, 6vw, 5.2rem);
+    line-height:.98;
+    letter-spacing:.01em;
+    margin-bottom:14px;
+    text-shadow:0 6px 30px rgba(0,0,0,.55);
+  }
+
+  .slide-subtitle{
+    font-size:clamp(.95rem, 1.4vw, 1.15rem);
+    line-height:1.55;
+    color:var(--ink-dim);
+    font-weight:300;
+    margin-bottom:30px;
+    max-width:520px;
+    text-shadow:0 2px 14px rgba(0,0,0,.5);
+  }
+
+  .shop-btn{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 30px;
+    background:var(--ink);
+    color:#111;
+    border:none;
+    border-radius:3px;
+    font-size:.9rem;
+    font-weight:600;
+    letter-spacing:.03em;
+    cursor:pointer;
+    overflow:hidden;
+    transition:transform .25s ease, background .25s ease, color .25s ease;
+  }
+  .shop-btn:hover{
+    background:var(--accent);
+    color:#141108;
+    transform:translateY(-2px);
+  }
+  .shop-btn:active{ transform:translateY(0); }
+  .shop-btn svg{ width:16px; height:16px; transition:transform .25s ease; }
+  .shop-btn:hover svg{ transform:translateX(4px); }
+
+  /* ============ ARROWS ============ */
+  .nav-arrow{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    z-index:5;
+    width:52px;
+    height:52px;
+    border-radius:50%;
+    border:1px solid rgba(242,240,234,.25);
+    background:rgba(10,10,12,.35);
+    backdrop-filter:blur(6px);
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:background .25s ease, border-color .25s ease, transform .25s ease;
+  }
+  .nav-arrow:hover{
+    background:rgba(212,175,55,.85);
+    border-color:rgba(212,175,55,.85);
+    color:#141108;
+  }
+  .nav-arrow:active{ transform:translateY(-50%) scale(.92); }
+  .nav-arrow svg{ width:20px; height:20px; }
+  .nav-prev{ left:24px; }
+  .nav-next{ right:24px; }
+
+  /* ============ DOTS ============ */
+  .dots{
+    position:absolute;
+    z-index:5;
+    bottom:34px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:rgba(242,240,234,.35);
+    cursor:pointer;
+    border:none;
+    padding:0;
+    position:relative;
+    transition:background .3s ease, width .3s ease;
+  }
+  .dot.active{
+    width:26px;
+    border-radius:5px;
+    background:var(--accent);
+  }
+
+  /* progress fill inside active dot to show autoplay timing */
+  .dot.active::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:5px;
+    background:rgba(255,255,255,.55);
+    transform-origin:left center;
+    transform:scaleX(0);
+  }
+  .dot.active.progress::after{
+    animation:dotfill var(--autoplay-interval) linear forwards;
+  }
+  @keyframes dotfill{
+    from{ transform:scaleX(0); }
+    to{ transform:scaleX(1); }
+  }
+
+  /* ============ SLIDE COUNTER ============ */
+  .slide-counter{
+    position:absolute;
+    z-index:5;
+    top:28px;
+    right:32px;
+    color:var(--ink-dim);
+    font-size:.8rem;
+    letter-spacing:.1em;
+    font-weight:500;
+  }
+  .slide-counter .cur{ color:var(--ink); font-weight:700; }
+
+  .brand-mark{
+    position:absolute;
+    z-index:5;
+    top:28px;
+    left:32px;
+    color:var(--ink);
+    font-family:'Bebas Neue',sans-serif;
+    font-size:1.4rem;
+    letter-spacing:.12em;
+  }
+  .brand-mark span{ color:var(--accent); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:900px){
+    .slide-content{ left:6%; right:6%; bottom:16%; max-width:none; }
+    .nav-arrow{ width:42px; height:42px; }
+    .nav-prev{ left:12px; } .nav-next{ right:12px; }
+  }
+  @media (max-width:600px){
+    .hero-slider{ height:100svh; }
+    .slide-title{ font-size:clamp(2rem,9vw,3rem); }
+    .slide-subtitle{ font-size:.9rem; margin-bottom:22px; }
+    .shop-btn{ padding:12px 22px; font-size:.82rem; }
+    .nav-arrow{ display:none; } /* swipe on mobile instead of arrows */
+    .brand-mark{ font-size:1.1rem; top:18px; left:18px; }
+    .slide-counter{ top:20px; right:18px; }
+    .dots{ bottom:22px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .slider-track.animate{ transition:none; }
+    .slide.kenburns img{ animation:none; }
+    .slide-content{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero-slider" id="heroSlider" aria-roledescription="carousel" aria-label="Featured collections">
+
+  <div class="brand-mark">LUME<span>.</span></div>
+  <div class="slide-counter"><span class="cur" id="curNum">01</span> / <span id="totNum">10</span></div>
+
+  <div class="slider-track" id="sliderTrack"><!-- slides injected by JS --></div>
+
+  <button class="nav-arrow nav-prev" id="prevBtn" aria-label="Previous slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </button>
+  <button class="nav-arrow nav-next" id="nextBtn" aria-label="Next slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+  </button>
+
+  <div class="dots" id="dotsWrap"></div>
+</div>
+
+<script>
+(function(){
+  // ---------- SLIDE DATA ----------
+  const slidesData = [
+    { img:"https://picsum.photos/id/1015/1920/1080", eyebrow:"New Arrival", title:"River's Edge", sub:"Handcrafted pieces inspired by wild water and quiet mornings.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1016/1920/1080", eyebrow:"Limited Drop", title:"Canyon Light", sub:"Earth-toned essentials built for long, golden afternoons.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1018/1920/1080", eyebrow:"Best Seller", title:"Highland Trail", sub:"Rugged outerwear engineered for altitude and attitude.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1019/1920/1080", eyebrow:"Editor's Pick", title:"Studio Line", sub:"Minimal silhouettes crafted in small, considered batches.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1020/1920/1080", eyebrow:"Season Favorite", title:"Coastal Drift", sub:"Breathable fabrics designed for salt air and slow days.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1021/1920/1080", eyebrow:"Just Landed", title:"Forest Line", sub:"Deep greens and technical layers for the quiet woods.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1024/1920/1080", eyebrow:"Collector's Edition", title:"Desert Bloom", sub:"Warm neutrals with a modern architectural cut.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1025/1920/1080", eyebrow:"Trending Now", title:"Companion Series", sub:"Everyday staples made to move with you, off duty.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1035/1920/1080", eyebrow:"Featured", title:"Alpine Reserve", sub:"Cold-weather craftsmanship, tested above the tree line.", cta:"Shop Now" },
+    { img:"https://picsum.photos/id/1040/1920/1080", eyebrow:"Fan Favorite", title:"Harborlight", sub:"Nautical-inspired pieces for open water and open roads.", cta:"Shop Now" }
+  ];
+
+  const total = slidesData.length;
+
+  // ---------- BUILD DOM (with clones for seamless infinite loop) ----------
+  const track = document.getElementById('sliderTrack');
+  const dotsWrap = document.getElementById('dotsWrap');
+  const curNumEl = document.getElementById('curNum');
+  document.getElementById('totNum').textContent = String(total).padStart(2,'0');
+
+  function buildSlide(data, realIndex){
+    const el = document.createElement('div');
+    el.className = 'slide';
+    el.dataset.real = realIndex;
+    el.innerHTML = `
+      <img src="${data.img}" alt="${data.title}" loading="${realIndex===0 ? 'eager':'lazy'}">
+      <div class="slide-content">
+        <span class="eyebrow">${data.eyebrow}</span>
+        <h1 class="slide-title">${data.title}</h1>
+        <p class="slide-subtitle">${data.sub}</p>
+        <button class="shop-btn">
+          ${data.cta}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </div>`;
+    return el;
+  }
+
+  // real slides
+  const realSlides = slidesData.map((d,i)=>buildSlide(d,i));
+  // clone last at the start, clone first at the end -> seamless loop
+  const firstClone = buildSlide(slidesData[0], 0);
+  const lastClone = buildSlide(slidesData[total-1], total-1);
+
+  track.appendChild(lastClone);
+  realSlides.forEach(s=>track.appendChild(s));
+  track.appendChild(firstClone);
+
+  const allSlides = Array.from(track.children); // length total+2
+  // index in allSlides: 0 = clone(last), 1..total = real, total+1 = clone(first)
+  let index = 1; // start at real slide 0
+  let isAnimating = false;
+
+  // ---------- DOTS ----------
+  for(let i=0;i<total;i++){
+    const b = document.createElement('button');
+    b.className = 'dot' + (i===0 ? ' active' : '');
+    b.setAttribute('aria-label', `Go to slide ${i+1}`);
+    b.addEventListener('click', ()=> goToReal(i));
+    dotsWrap.appendChild(b);
+  }
+  const dotEls = Array.from(dotsWrap.children);
+
+  function updateDots(realIdx, withProgress){
+    dotEls.forEach((d,i)=>{
+      d.classList.toggle('active', i===realIdx);
+      d.classList.remove('progress');
+    });
+    if(withProgress){
+      // restart animation on active dot
+      void dotEls[realIdx].offsetWidth;
+      dotEls[realIdx].classList.add('progress');
+    }
+    curNumEl.textContent = String(realIdx+1).padStart(2,'0');
+  }
+
+  function updateKenBurns(){
+    allSlides.forEach(s=>s.classList.remove('kenburns','active'));
+    allSlides[index].classList.add('kenburns','active');
+  }
+
+  function setTrackPosition(withTransition){
+    track.classList.toggle('animate', withTransition);
+    track.style.transform = `translate3d(-${index*100}%,0,0)`;
+  }
+
+  // initial paint (no transition)
+  setTrackPosition(false);
+  updateKenBurns();
+  updateDots(0, true);
+
+  function currentRealIndex(){
+    // map allSlides index -> real 0..total-1
+    if(index===0) return total-1;
+    if(index===total+1) return 0;
+    return index-1;
+  }
+
+  function goNext(){ moveTo(index+1); }
+  function goPrev(){ moveTo(index-1); }
+
+  function moveTo(newIndex){
+    if(isAnimating) return;
+    isAnimating = true;
+    index = newIndex;
+    setTrackPosition(true);
+    updateKenBurns();
+    updateDots(currentRealIndex(), false);
+  }
+
+  function goToReal(realIdx){
+    if(isAnimating) return;
+    moveTo(realIdx+1);
+  }
+
+  // handle seamless loop reset after transition ends
+  track.addEventListener('transitionend', (e)=>{
+    if(e.propertyName !== 'transform') return;
+    isAnimating = false;
+
+    if(index === total+1){ // sitting on clone-of-first -> snap to real first
+      index = 1;
+      setTrackPosition(false);
+      updateKenBurns();
+    } else if(index === 0){ // sitting on clone-of-last -> snap to real last
+      index = total;
+      setTrackPosition(false);
+      updateKenBurns();
+    }
+    updateDots(currentRealIndex(), true);
+    restartAutoplay();
+  });
+
+  // ---------- AUTOPLAY ----------
+  const AUTOPLAY_MS = 3000;
+  let autoplayTimer = null;
+
+  function startAutoplay(){
+    clearInterval(autoplayTimer);
+    autoplayTimer = setInterval(()=>{ goNext(); }, AUTOPLAY_MS);
+  }
+  function stopAutoplay(){ clearInterval(autoplayTimer); }
+  function restartAutoplay(){ startAutoplay(); }
+
+  startAutoplay();
+
+  // ---------- CONTROLS ----------
+  document.getElementById('nextBtn').addEventListener('click', ()=>{ goNext(); restartAutoplay(); });
+  document.getElementById('prevBtn').addEventListener('click', ()=>{ goPrev(); restartAutoplay(); });
+
+  const sliderEl = document.getElementById('heroSlider');
+  sliderEl.addEventListener('mouseenter', stopAutoplay);
+  sliderEl.addEventListener('mouseleave', startAutoplay);
+
+  // pause dot progress animation visually when hovered by also removing class
+  sliderEl.addEventListener('mouseenter', ()=>{
+    dotEls.forEach(d=>d.classList.remove('progress'));
+  });
+  sliderEl.addEventListener('mouseleave', ()=>{
+    updateDots(currentRealIndex(), true);
+  });
+
+  // ---------- KEYBOARD ----------
+  sliderEl.setAttribute('tabindex','0');
+  sliderEl.addEventListener('keydown', (e)=>{
+    if(e.key === 'ArrowRight'){ goNext(); restartAutoplay(); }
+    if(e.key === 'ArrowLeft'){ goPrev(); restartAutoplay(); }
+  });
+
+  // ---------- TOUCH / SWIPE ----------
+  let touchStartX = 0;
+  let touchDeltaX = 0;
+  sliderEl.addEventListener('touchstart', (e)=>{
+    touchStartX = e.touches[0].clientX;
+    stopAutoplay();
+  }, {passive:true});
+  sliderEl.addEventListener('touchmove', (e)=>{
+    touchDeltaX = e.touches[0].clientX - touchStartX;
+  }, {passive:true});
+  sliderEl.addEventListener('touchend', ()=>{
+    if(touchDeltaX > 50) goPrev();
+    else if(touchDeltaX < -50) goNext();
+    touchDeltaX = 0;
+    startAutoplay();
+  });
+
+  // pause autoplay when tab not visible (perf)
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) stopAutoplay();
+    else startAutoplay();
+  });
+
+})();
+</script>
+</body>
+</html>

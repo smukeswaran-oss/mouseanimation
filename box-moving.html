@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mouse Move Effect</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:linear-gradient(135deg,#0f172a,#1e293b,#334155);
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+}
+
+.card{
+    width:320px;
+    height:220px;
+    background:rgba(255,255,255,.1);
+    backdrop-filter:blur(15px);
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:20px;
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    transition:transform .1s linear;
+    box-shadow:0 20px 40px rgba(0,0,0,.4);
+}
+
+.card h1{
+    margin-bottom:10px;
+}
+
+.card p{
+    color:#ddd;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h1>🔥 Mouse Effect</h1>
+    <p>Move your mouse</p>
+</div>
+
+<script>
+const card = document.querySelector(".card");
+
+document.addEventListener("mousemove", (e) => {
+
+    let x = (e.clientX - window.innerWidth / 2) / 15;
+    let y = (e.clientY - window.innerHeight / 2) / 15;
+
+    card.style.transform =
+        `translate(${x}px, ${y}px)`;
+});
+</script>
+
+</body>
+</html>

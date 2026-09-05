@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cursor Follow Design</title>
+<style>
+  :root{
+    --bg:#0b0c10;
+    --grid:#161821;
+    --accent:#7CFFCB;
+    --accent2:#6C8CFF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    cursor:none;
+    font-family:'Courier New', monospace;
+  }
+  .grid{
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:40px 40px;
+  }
+  .label{
+    position:fixed;
+    top:24px;
+    left:24px;
+    color:#4a4d5a;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+  .coords{
+    position:fixed;
+    bottom:24px;
+    left:24px;
+    color:#4a4d5a;
+    font-size:12px;
+    letter-spacing:1px;
+  }
+  .follower{
+    position:fixed;
+    top:0;
+    left:0;
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--accent), var(--accent2));
+    box-shadow:0 0 40px 8px rgba(124,255,203,0.35);
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    mix-blend-mode:screen;
+  }
+  .ring{
+    position:fixed;
+    top:0;
+    left:0;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.6);
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="label">move your mouse</div>
+  <div class="coords" id="coords">x:0 y:0</div>
+
+  <div class="follower" id="follower"></div>
+  <div class="ring" id="ring"></div>
+
+  <script>
+    const follower = document.getElementById('follower');
+    const ring = document.getElementById('ring');
+    const coords = document.getElementById('coords');
+
+    let mouseX = window.innerWidth/2, mouseY = window.innerHeight/2;
+    let fx = mouseX, fy = mouseY;   // slow follower (lag)
+    let rx = mouseX, ry = mouseY;   // fast ring (near-instant)
+
+    window.addEventListener('mousemove', (e)=>{
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      coords.textContent = `x:${Math.round(mouseX)} y:${Math.round(mouseY)}`;
+    });
+
+    function animate(){
+      // smooth lag - lerp
+      fx += (mouseX - fx) * 0.08;
+      fy += (mouseY - fy) * 0.08;
+      rx += (mouseX - rx) * 0.25;
+      ry += (mouseY - ry) * 0.25;
+
+      follower.style.left = fx + 'px';
+      follower.style.top = fy + 'px';
+      ring.style.left = rx + 'px';
+      ring.style.top = ry + 'px';
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>
